@@ -4,13 +4,16 @@ import numpy as np
 # Keycode definitions
 ESC_KEY = 27
 Q_KEY = 113
+G_KEY = 103
 
-def captureVideoFromCamera():
+def captureVideoFromCamera(windowName):
+    selectedColor = cv.COLOR_BGR2GRAY
+
     cameraID = askCameraIdToUser()
     if cameraID == -1:
         exit()
     cap = cv.VideoCapture(cameraID)
-    
+
     while not cap.isOpened():
         print("Cannot open camera")
         cap.release()
@@ -27,14 +30,22 @@ def captureVideoFromCamera():
             print("Can't receive frame (stream end?). Exiting ...")
             break
         # Our operations on the frame come here
-        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        gray = cv.cvtColor(frame, selectedColor)
+
         # Display the resulting frame
-        cv.imshow('frame', gray)
+        cv.imshow(windowName, gray)
+
         if cv.waitKey(1) == ESC_KEY:
             break
+        elif cv.waitKey(1) == G_KEY:
+            if selectedColor == cv.COLOR_BGR2GRAY:
+                selectedColor = cv.COLOR_BGR2BGRA
+            else:
+                selectedColor = cv.COLOR_BGR2GRAY
  
     # When everything done, release the capture
     cap.release()
+    cv.destroyAllWindows(windowName)
     cv.destroyAllWindows()
 
 def playingVideoFromFile(path):
@@ -67,7 +78,10 @@ def askCameraIdToUser():
 
 def main():
     key = None
-    captureVideoFromCamera()
+    windowName = "OpenCV Calibration"
+    cv.namedWindow(windowName, cv.WINDOW_AUTOSIZE)
+
+    captureVideoFromCamera(windowName)
     playingVideoFromFile("video_test.mp4")
 
 # Starting the code
