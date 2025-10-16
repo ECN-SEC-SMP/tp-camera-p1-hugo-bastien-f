@@ -6,7 +6,7 @@ ESC_KEY = 27
 Q_KEY = 113
 G_KEY = 103
 
-def captureVideoFromCamera(windowName):
+def captureVideoFromCamera():
     selectedColor = cv.COLOR_BGR2GRAY
 
     cameraID = askCameraIdToUser()
@@ -30,11 +30,12 @@ def captureVideoFromCamera(windowName):
             print("Can't receive frame (stream end?). Exiting ...")
             break
         # Our operations on the frame come here
-        gray = cv.cvtColor(frame, selectedColor)
+        image = cv.cvtColor(frame, selectedColor)
 
         # Display the resulting frame
-        cv.imshow(windowName, gray)
+        cv.imshow('frame', image)
 
+        # User inputs
         if cv.waitKey(1) == ESC_KEY:
             break
         elif cv.waitKey(1) == G_KEY:
@@ -45,7 +46,6 @@ def captureVideoFromCamera(windowName):
  
     # When everything done, release the capture
     cap.release()
-    cv.destroyAllWindows(windowName)
     cv.destroyAllWindows()
 
 def playingVideoFromFile(path):
@@ -76,13 +76,28 @@ def askCameraIdToUser():
         print("Invalid input. Please enter an integer.")
         askCameraIdToUser()
 
-def main():
-    key = None
-    windowName = "OpenCV Calibration"
-    cv.namedWindow(windowName, cv.WINDOW_AUTOSIZE)
+def printGoproCalibrationImages():
+    selectedImage = 1
 
-    captureVideoFromCamera(windowName)
+    while(1):
+        filename = f"calib_gopro/GOPR{8400 + selectedImage:04d}.jpg"
+        image = cv.imread(filename)
+        if image is None:
+            print(f"Impossible de lire {filename}")
+            break
+        cv.imshow('image', image)
+
+        selectedImage += 1
+        if selectedImage == 28:
+            selectedImage = 1
+
+        if cv.waitKey(1) == ESC_KEY:
+            break
+
+def main():
+    captureVideoFromCamera()
     playingVideoFromFile("video_test.mp4")
+    printGoproCalibrationImages()
 
 # Starting the code
 if __name__ == "__main__":
