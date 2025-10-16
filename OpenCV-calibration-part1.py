@@ -5,11 +5,19 @@ import numpy as np
 ESC_KEY = 27
 Q_KEY = 113
 
-def captureVideoFromCamera(cameraID):
-    cap = cv.VideoCapture(cameraID)
-    if not cap.isOpened():
-        print("Cannot open camera")
+def captureVideoFromCamera():
+    cameraID = askCameraIdToUser()
+    if cameraID == -1:
         exit()
+    cap = cv.VideoCapture(cameraID)
+    
+    while not cap.isOpened():
+        print("Cannot open camera")
+        cap.release()
+        cameraID = askCameraIdToUser()
+        if cameraID == -1:
+            exit()
+        cap = cv.VideoCapture(cameraID)
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -48,9 +56,18 @@ def playingVideoFromFile(path):
     cap.release()
     cv.destroyAllWindows()
 
+def askCameraIdToUser():
+    print("Select camera to open (enter camera ID, or -1 to exit)")
+    try:
+        cameraID = int(input())
+        return cameraID
+    except ValueError:
+        print("Invalid input. Please enter an integer.")
+        askCameraIdToUser()
+
 def main():
     key = None
-    captureVideoFromCamera(0)
+    captureVideoFromCamera()
     playingVideoFromFile("video_test.mp4")
 
 # Starting the code
