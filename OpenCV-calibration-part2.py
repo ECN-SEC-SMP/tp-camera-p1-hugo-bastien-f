@@ -7,9 +7,11 @@ Q_KEY = 113
 G_KEY = 103
 SPACE = 32
 
+# Global variables
 chessboardSize = (0, 0)
 numImages = 0
 
+# Open camera and set resolution
 def openCamera():
     cameraID = askCameraIdToUser()
     if cameraID == -1:
@@ -30,42 +32,24 @@ def openCamera():
     
     return cap
 
+# Capture a frame from the camera and convert to grayscale
 def captureFrameFromCamera(cap):
-    # Capture frame-by-frame
-    ret, frame = cap.read()
+    ret, frame = cap.read() # Capture frame-by-frame
 
-    # if frame is read correctly ret is True
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
         return None, None
 
-    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY) # Convert to grayscale
 
     return frame, gray
- 
+
+# Close camera and destroy all windows
 def closeCamera(cap):
     cap.release()
     cv.destroyAllWindows()
 
-def playingVideoFromFile(path):
-    cap = cv.VideoCapture(path)
- 
-    while cap.isOpened():
-        ret, frame = cap.read()
-    
-        # if frame is read correctly ret is True
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            break
-        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    
-        cv.imshow('frame', gray)
-        if cv.waitKey(1) == ESC_KEY:
-            break
-    
-    cap.release()
-    cv.destroyAllWindows()
-
+# Ask user for camera ID
 def askCameraIdToUser():
     print("Select camera to open (enter camera ID, or -1 to exit)")
     try:
@@ -74,7 +58,8 @@ def askCameraIdToUser():
     except ValueError:
         print("Invalid input. Please enter an integer.")
         return askCameraIdToUser()
-    
+
+# Ask user for chessboard size
 def askChessboardSizeToUser():
     try:
         print("Enter chessboard width")
@@ -92,6 +77,7 @@ def askChessboardSizeToUser():
         print("Invalid input. Please enter two integers.")
         return askChessboardSizeToUser()
     
+# Ask user for number of images to capture
 def askNumberOfImagesToUser():
     try:
         print("Enter number of images to capture for calibration (or -1 to exit)")
@@ -104,22 +90,24 @@ def askNumberOfImagesToUser():
         print("Invalid input. Please enter an integer.")
         return askNumberOfImagesToUser()
 
+# Detect chessboard corners in the captured frame
 def chessBoardDetection(cap):
     frame, gray = captureFrameFromCamera(cap)
     if frame is None:
         return None, None, None
 
+    # Find chessboard corners
     ret, corners = cv.findChessboardCorners(gray, chessboardSize, flags=cv.CALIB_CB_ADAPTIVE_THRESH)
 
     if ret:
-        criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        corners2 = cv.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria)
-        frame = cv.drawChessboardCorners(frame, (9,6), corners2, ret)
+        criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001) # refine corner locations
+        corners2 = cv.cornerSubPix(gray,corners, (11,11), (-1,-1), criteria) # refine corner locations
+        frame = cv.drawChessboardCorners(frame, (9,6), corners2, ret) # draw corners on frame
         return frame, corners2, gray.shape[::-1]
     else:
         return frame, None, gray.shape[::-1]
 
-
+# Calibrate camera using object points and image points
 def calibrateCamera(objpoints, imgpoints, image_size):
     if len(objpoints) == 0 or len(imgpoints) == 0:
         return None, None, None, None, None
@@ -133,13 +121,14 @@ def calibrateCamera(objpoints, imgpoints, image_size):
     )
     return ret, intrinsic, distCoeffs, rvecs, tvecs
 
+# Rectify image using calibration parameters
 def imageRectification(img, mtx, dist):
     h, w = img.shape[:2]
     newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
     dst = cv.undistort(img, mtx, dist, None, newcameramtx)
     return dst
 
-
+# Ask user which image to display and show it until ESC/Q
 def askImageToDisplay(original_img, rectified_img):
     if original_img is None and rectified_img is None:
         print("No image available to display.")
@@ -188,6 +177,7 @@ def main():
     askChessboardSizeToUser()
     askNumberOfImagesToUser()
 
+    # Prepare object points based on chessboard size
     objp = np.zeros((chessboardSize[0]*chessboardSize[1], 3), np.float32)
     objp[:,:2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
 
@@ -229,6 +219,5 @@ def main():
 
     askImageToDisplay(last_frame, rectified_img)
 
-# Starting the code
 if __name__ == "__main__":
     main()
