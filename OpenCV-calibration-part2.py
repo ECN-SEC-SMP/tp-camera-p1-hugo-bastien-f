@@ -7,8 +7,8 @@ Q_KEY = 113
 G_KEY = 103
 SPACE = 32
 
-# Chessboard pattern size (number of inner corners)
-CHESSBOARD_SIZE = (9, 6)
+chessboardSize = (0, 0)
+numImages = 0
 
 def openCamera():
     cameraID = askCameraIdToUser()
@@ -74,13 +74,42 @@ def askCameraIdToUser():
     except ValueError:
         print("Invalid input. Please enter an integer.")
         return askCameraIdToUser()
+    
+def askChessboardSizeToUser():
+    try:
+        print("Enter chessboard width")
+        width = int(input())
+
+        print("Enter chessboard height")
+        height = int(input())
+
+        if width == -1 and height == -1:
+            exit()
+
+        global chessboardSize
+        chessboardSize = (width, height)
+    except ValueError:
+        print("Invalid input. Please enter two integers.")
+        return askChessboardSizeToUser()
+    
+def askNumberOfImagesToUser():
+    try:
+        print("Enter number of images to capture for calibration (or -1 to exit)")
+        num_images = int(input())
+        if num_images == -1:
+            exit()
+        global numImages
+        numImages = num_images
+    except ValueError:
+        print("Invalid input. Please enter an integer.")
+        return askNumberOfImagesToUser()
 
 def chessBoardDetection(cap):
     frame, gray = captureFrameFromCamera(cap)
     if frame is None:
         return None, None, None
 
-    ret, corners = cv.findChessboardCorners(gray, CHESSBOARD_SIZE, flags=cv.CALIB_CB_ADAPTIVE_THRESH)
+    ret, corners = cv.findChessboardCorners(gray, chessboardSize, flags=cv.CALIB_CB_ADAPTIVE_THRESH)
 
     if ret:
         criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -110,26 +139,78 @@ def imageRectification(img, mtx, dist):
     dst = cv.undistort(img, mtx, dist, None, newcameramtx)
     return dst
 
+
+def askImageToDisplay(original_img, rectified_img):
+    if original_img is None and rectified_img is None:
+        print("No image available to display.")
+        return
+
+    while True:
+        print("\nWhat do you want to display ?")
+        print("1 - Original image")
+        print("2 - Rectified image")
+        print("3 - Exit display menu")
+
+        try:
+            choice = int(input())
+        except ValueError:
+            print("Invalid input. Please enter 1, 2 or 3.")
+            continue
+
+        if choice == 3:
+            break
+        elif choice == 1:
+            if original_img is None:
+                print("Original image not available.")
+                continue
+            window_name = 'original'
+            img_to_show = original_img
+        elif choice == 2:
+            if rectified_img is None:
+                print("Rectified image not available. Run calibration first.")
+                continue
+            window_name = 'rectified'
+            img_to_show = rectified_img
+        else:
+            print("Invalid choice. Please enter 1, 2 or 3.")
+            continue
+
+        while True:
+            cv.imshow(window_name, img_to_show)
+            key = cv.waitKey(30) & 0xFF
+            if key in (ESC_KEY, Q_KEY):
+                cv.destroyWindow(window_name)
+                break
+
 def main():
-    objp = np.zeros((CHESSBOARD_SIZE[0]*CHESSBOARD_SIZE[1], 3), np.float32)
-    objp[:,:2] = np.mgrid[0:CHESSBOARD_SIZE[0], 0:CHESSBOARD_SIZE[1]].T.reshape(-1, 2)
+    counter = 0
+
+    askChessboardSizeToUser()
+    askNumberOfImagesToUser()
+
+    objp = np.zeros((chessboardSize[0]*chessboardSize[1], 3), np.float32)
+    objp[:,:2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
 
     objpoints = []  
     imgpoints = [] 
 
     cap = openCamera()
+    last_frame = None
+    rectified_img = None
     while True:
         frame, corners, image_size = chessBoardDetection(cap)
         if frame is None:
             break
+        last_frame = frame.copy()
         cv.imshow('frame', frame)
         
         key = cv.waitKey(1) & 0xFF
         if corners is not None and key == SPACE:
             objpoints.append(objp)
             imgpoints.append(corners)
+            counter += 1
 
-        if key == G_KEY:
+        if key == G_KEY or counter == numImages:
             ret, intrinsic, distCoeffs, rvecs, tvecs = calibrateCamera(objpoints, imgpoints, image_size)
             print("Calibration results:")
             print("Retval:", ret)
@@ -138,17 +219,15 @@ def main():
             print("Rotation Vectors:\n", rvecs)
             print("Translation Vectors:\n", tvecs)
 
-            img = imageRectification(frame, intrinsic, distCoeffs)
-
-            cv.imshow('rectified', img)
-
-            while True:
-                key = cv.waitKey(1) & 0xFF
-                if key == ESC_KEY or key == Q_KEY:
-                    break
+            rectified_img = imageRectification(frame, intrinsic, distCoeffs)
+            break
 
         if key in (ESC_KEY, Q_KEY):
-            return None
+            break
+
+    closeCamera(cap)
+
+    askImageToDisplay(last_frame, rectified_img)
 
 # Starting the code
 if __name__ == "__main__":
