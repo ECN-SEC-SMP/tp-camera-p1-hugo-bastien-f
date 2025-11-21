@@ -104,6 +104,12 @@ def calibrateCamera(objpoints, imgpoints, image_size):
     )
     return ret, intrinsic, distCoeffs, rvecs, tvecs
 
+def imageRectification(img, mtx, dist):
+    h, w = img.shape[:2]
+    newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+    dst = cv.undistort(img, mtx, dist, None, newcameramtx)
+    return dst
+
 def main():
     objp = np.zeros((CHESSBOARD_SIZE[0]*CHESSBOARD_SIZE[1], 3), np.float32)
     objp[:,:2] = np.mgrid[0:CHESSBOARD_SIZE[0], 0:CHESSBOARD_SIZE[1]].T.reshape(-1, 2)
@@ -131,6 +137,15 @@ def main():
             print("Distortion Coefficients:\n", distCoeffs)
             print("Rotation Vectors:\n", rvecs)
             print("Translation Vectors:\n", tvecs)
+
+            img = imageRectification(frame, intrinsic, distCoeffs)
+
+            cv.imshow('rectified', img)
+
+            while True:
+                key = cv.waitKey(1) & 0xFF
+                if key == ESC_KEY or key == Q_KEY:
+                    break
 
         if key in (ESC_KEY, Q_KEY):
             return None
